@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { AppLanguage, DiagnosisResult } from "@/types/diagnosis";
 
 interface DiagnoseInput {
@@ -46,7 +45,8 @@ If the image is not of a crop or plant, return an error JSON:
 Keep Hindi text natural and simple — use words a rural farmer would understand,
 not technical agricultural jargon.`;
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 export async function diagnoseCrop({
   imageBase64,
@@ -55,15 +55,18 @@ export async function diagnoseCrop({
   cropType,
   mediaType = "image/jpeg"
 }: DiagnoseInput): Promise<DiagnosisResult> {
-  const content: Anthropic.MessageParam["content"] = [];
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is not configured.");
+  }
+
+  const content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [];
 
   if (imageBase64) {
     content.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: mediaType,
-        data: imageBase64
+      type: "image_url",
+      image_url: {
+        url: `data:${mediaType};base64,${imageBase64}`
       }
     });
   }
@@ -75,17 +78,37 @@ export async function diagnoseCrop({
       : `Language preference: ${language}. Crop: ${cropType || "unknown"}. Diagnose the crop disease in this image. Respond in JSON only.`
   });
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1000,
-    system: systemPrompt,
-    messages: [{ role: "user", content }]
+  const response = await fetch(GROQ_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      max_tokens: 1000,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content }
+      ]
+    })
   });
 
-  const firstBlock = response.content[0];
-  if (!firstBlock || firstBlock.type !== "text") {
-    throw new Error("Unexpected response format from Claude API");
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Groq API error (${response.status}): ${errorBody}`);
   }
 
-  return JSON.parse(firstBlock.text) as DiagnosisResult;
+  const json = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  const contentText = json.choices?.[0]?.message?.content;
+  if (!contentText) {
+    throw new Error("Unexpected response format from Groq API.");
+  }
+
+  return JSON.parse(contentText) as DiagnosisResult;
 }
