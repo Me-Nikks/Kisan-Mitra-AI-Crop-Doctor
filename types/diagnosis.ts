@@ -7,8 +7,6 @@ export interface DiagnosisStep {
 }
 
 export interface DiagnosisResult {
-  crop_name: string;
-  crop_name_hindi: string;
   disease_name: string;
   disease_name_hindi: string;
   confidence: "high" | "medium" | "low";

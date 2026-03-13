@@ -15,10 +15,8 @@ ALWAYS respond in valid JSON only. No markdown, no explanation outside JSON.
 
 Your response must follow this exact structure:
 {
-  "crop_name": "string (identified plant/crop/tree common name in English)",
-  "crop_name_hindi": "string (identified plant/crop/tree name in Hindi)",
-  "disease_name": "string (common disease/problem name)",
-  "disease_name_hindi": "string (Hindi disease name if known, else same as above)",
+  "disease_name": "string (common name)",
+  "disease_name_hindi": "string (Hindi name if known, else same as above)",
   "confidence": "high" | "medium" | "low",
   "severity": "mild" | "moderate" | "severe",
   "affected_part": "string (leaves/fruit/stem/roots/whole plant)",
@@ -39,11 +37,8 @@ Your response must follow this exact structure:
   "not_sure": false
 }
 
-Important:
-- Always include both "crop_name" and "disease_name".
-- If exact crop is unclear, set crop_name to best guess like "Unknown crop" and crop_name_hindi to "अज्ञात फसल".
-- If exact disease is unclear, provide best-guess disease and set not_sure=true with low confidence.
-
+If you cannot determine the disease from the image/description, set "not_sure": true and still
+fill in your best guess with low confidence.
 If the image is not of a crop or plant, return an error JSON:
 { "error": "Please upload a photo of a crop or plant." }
 
@@ -79,8 +74,8 @@ export async function diagnoseCrop({
   content.push({
     type: "text",
     text: description
-      ? `Language preference: ${language}. Crop selected by farmer: ${cropType || "unknown"}. Farmer describes: "${description}". Diagnose and respond in JSON.`
-      : `Language preference: ${language}. Crop selected by farmer: ${cropType || "unknown"}. Diagnose the crop disease in this image. Respond in JSON only.`
+      ? `Language preference: ${language}. Crop: ${cropType || "unknown"}. Farmer describes: "${description}". Diagnose and respond in JSON.`
+      : `Language preference: ${language}. Crop: ${cropType || "unknown"}. Diagnose the crop disease in this image. Respond in JSON only.`
   });
 
   const response = await fetch(GROQ_API_URL, {
@@ -115,23 +110,5 @@ export async function diagnoseCrop({
     throw new Error("Unexpected response format from Groq API.");
   }
 
-  const parsed = JSON.parse(contentText) as Partial<DiagnosisResult>;
-
-  return {
-    crop_name: parsed.crop_name || (cropType ? cropType : "Unknown crop"),
-    crop_name_hindi: parsed.crop_name_hindi || (cropType ? cropType : "अज्ञात फसल"),
-    disease_name: parsed.disease_name || "Unknown disease",
-    disease_name_hindi: parsed.disease_name_hindi || parsed.disease_name || "अज्ञात रोग",
-    confidence: parsed.confidence || "low",
-    severity: parsed.severity || "moderate",
-    affected_part: parsed.affected_part || "whole plant",
-    cause: parsed.cause || "Unknown",
-    cause_hindi: parsed.cause_hindi || "अज्ञात",
-    steps: parsed.steps || [],
-    prevention: parsed.prevention || "Monitor crop condition and consult local expert.",
-    prevention_hindi: parsed.prevention_hindi || "फसल की निगरानी करें और नजदीकी कृषि विशेषज्ञ से सलाह लें।",
-    urgency: parsed.urgency || "monitor",
-    not_sure: parsed.not_sure ?? true,
-    error: parsed.error
-  };
+  return JSON.parse(contentText) as DiagnosisResult;
 }

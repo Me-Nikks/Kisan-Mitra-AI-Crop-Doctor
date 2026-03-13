@@ -52,18 +52,7 @@ export default function DiagnosisResult({ data, language }: DiagnosisResultProps
       </div>
 
       <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-          {isHindi ? "पौधा / फसल का नाम" : "Plant / Crop Name"}
-        </p>
-        <h2 className="text-xl font-bold text-green-900">{isHindi ? data.crop_name_hindi : data.crop_name}</h2>
-        <p className="text-sm text-gray-600">{isHindi ? data.crop_name : data.crop_name_hindi}</p>
-      </div>
-
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-          {isHindi ? "रोग का नाम" : "Disease Name"}
-        </p>
-        <h3 className="text-2xl font-bold text-green-900">{isHindi ? data.disease_name_hindi : data.disease_name}</h3>
+        <h2 className="text-2xl font-bold text-green-900">{isHindi ? data.disease_name_hindi : data.disease_name}</h2>
         <p className="text-sm text-gray-600">{isHindi ? data.disease_name : data.disease_name_hindi}</p>
         <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
           <span>Confidence:</span>
@@ -90,25 +79,19 @@ export default function DiagnosisResult({ data, language }: DiagnosisResultProps
 
       <div className="space-y-2">
         <h3 className="text-lg font-semibold text-green-900">Treatment Steps</h3>
-        {data.steps.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 p-3 text-sm text-gray-600">
-            {isHindi ? "कोई उपचार चरण उपलब्ध नहीं है।" : "No treatment steps available."}
-          </div>
-        ) : (
-          data.steps.map((step) => (
-            <div key={step.step} className="rounded-lg border border-gray-200 p-3 text-sm">
-              <p className="font-medium">
-                {step.step}. {isHindi ? step.action_hindi : step.action}
+        {data.steps.map((step) => (
+          <div key={step.step} className="rounded-lg border border-gray-200 p-3 text-sm">
+            <p className="font-medium">
+              {step.step}. {isHindi ? step.action_hindi : step.action}
+            </p>
+            {(step.product || step.dosage) && (
+              <p className="mt-1 text-gray-600">
+                {step.product ?? "General"}
+                {step.dosage ? ` — ${step.dosage}` : ""}
               </p>
-              {(step.product || step.dosage) && (
-                <p className="mt-1 text-gray-600">
-                  {step.product ?? "General"}
-                  {step.dosage ? ` — ${step.dosage}` : ""}
-                </p>
-              )}
-            </div>
-          ))
-        )}
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="rounded-lg border-l-4 border-green-600 bg-green-50 p-3 text-sm text-green-900">
